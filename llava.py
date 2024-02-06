@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from torch.nn import CrossEntropyLoss
 
 from transformers import AutoConfig, AutoModelForCausalLM, \
-                         LlamaConfig, LlamaModel, LlamaForCausalLM, \
+                        LlamaModel, LlamaForCausalLM, \
                          CLIPVisionModel, CLIPImageProcessor
 
 from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
