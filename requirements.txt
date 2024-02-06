@@ -1,5 +1,4 @@
 sentencepiece
-git+https://github.com/haotian-liu/LLaVA/tree/7ace501183c4bdec6052ec1a30039cdc3242a67c
 transformers
 diffusers
 tokenizers
