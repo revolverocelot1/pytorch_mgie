@@ -1,6 +1,6 @@
 
 import os
-# os.system('cp -r ./_ckpt/LLaVA-7B-v1 /data/LLaVA-7B-v1'), os.system('cp -r ./_ckpt/mgie_7b /data/mgie_7b')
+os.system('cp -r ./_ckpt/LLaVA-7B-v1 /data/LLaVA-7B-v1'), os.system('cp -r ./_ckpt/mgie_7b /data/mgie_7b')
 os.system('ls /data'), os.system('df -h /data')
 [os.system('mv llava.py /home/user/.pyenv/versions/3.10.13/lib/python3.10/site-packages/llava/model/llava.py'), 
  os.system('mv train.py /home/user/.pyenv/versions/3.10.13/lib/python3.10/site-packages/llava/train/train.py')]
