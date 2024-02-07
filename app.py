@@ -1,10 +1,13 @@
 
 import os
-
-from tqdm.auto import tqdm
+# os.system('cp -r ./_ckpt/LLaVA-7B-v1 /data/LLaVA-7B-v1'), os.system('cp -r ./_ckpt/mgie_7b /data/mgie_7b')
+os.system('ls /data'), os.system('df -h /data')
+[os.system('mv llava.py /home/user/.pyenv/versions/3.10.13/lib/python3.10/site-packages/llava/model/llava.py'), 
+ os.system('mv train.py /home/user/.pyenv/versions/3.10.13/lib/python3.10/site-packages/llava/train/train.py')]
 
 from PIL import Image
 
+import numpy as np
 import torch as T
 import transformers, diffusers
 
@@ -36,7 +39,7 @@ DEFAULT_IMAGE_TOKEN = '<image>'
 DEFAULT_IMAGE_PATCH_TOKEN = '<im_patch>'
 DEFAULT_IM_START_TOKEN = '<im_start>'
 DEFAULT_IM_END_TOKEN = '<im_end>'
-PATH_LLAVA = './_ckpt/LLaVA-7B-v1'
+PATH_LLAVA = '/data/LLaVA-7B-v1'
 
 tokenizer = transformers.AutoTokenizer.from_pretrained(PATH_LLAVA)
 model = LlavaLlamaForCausalLM.from_pretrained(PATH_LLAVA, low_cpu_mem_usage=True, torch_dtype=T.float16, use_cache=True).cuda()
@@ -45,7 +48,7 @@ image_processor = transformers.CLIPImageProcessor.from_pretrained(model.config.m
 tokenizer.padding_side = 'left'
 tokenizer.add_tokens(['[IMG0]', '[IMG1]', '[IMG2]', '[IMG3]', '[IMG4]', '[IMG5]', '[IMG6]', '[IMG7]'], special_tokens=True)
 model.resize_token_embeddings(len(tokenizer))
-ckpt = T.load('./_ckpt/mgie_7b/mllm.pt', map_location='cpu')
+ckpt = T.load('/data/mgie_7b/mllm.pt', map_location='cpu')
 model.load_state_dict(ckpt, strict=False)
 
 mm_use_im_start_end = getattr(model.config, 'mm_use_im_start_end', False)
@@ -65,10 +68,9 @@ _ = model.eval()
 EMB = ckpt['emb'].cuda()
 with T.inference_mode(): NULL = model.edit_head(T.zeros(1, 8, 4096).half().to('cuda'), EMB)
 
-pipe = diffusers.StableDiffusionInstructPix2PixPipeline.from_pretrained('timbrooks/instruct-pix2pix', torch_dtype=T.float16, safety_checker=None).to('cuda')
+pipe = diffusers.StableDiffusionInstructPix2PixPipeline.from_pretrained('timbrooks/instruct-pix2pix', torch_dtype=T.float16).to('cuda')
 pipe.set_progress_bar_config(disable=True)
-pipe.unet.load_state_dict(T.load('./_ckpt/mgie_7b/unet.pt', map_location='cpu'))
-
+pipe.unet.load_state_dict(T.load('/data/mgie_7b/unet.pt', map_location='cpu'))
 print('--init MGIE--')
 
 def go_mgie(img, txt, seed, cfg_txt, cfg_img):
@@ -90,7 +92,9 @@ def go_mgie(img, txt, seed, cfg_txt, cfg_img):
                              return_dict_in_generate=True, output_hidden_states=True)
         out, hid = out['sequences'][0].tolist(), T.cat([x[-1] for x in out['hidden_states']], dim=1)[0]
         
-        p = min(out.index(32003)-1 if 32003 in out else len(hid)-9, len(hid)-9)
+        if 32003 in out: p = out.index(32003)-1
+        else: p = len(hid)-9
+        p = min(p, len(hid)-9)
         hid = hid[p:p+8]
 
         out = remove_alter(tokenizer.decode(out))
@@ -110,8 +114,18 @@ def go_example(seed, cfg_txt, cfg_img):
     
     return './_input/%d.jpg'%(i), txt[i], seed, cfg_txt, cfg_img
 
+go_mgie(np.array(Image.open('./_input/0.jpg').convert('RGB')), 'make the frame red', 13331, 7.5, 1.5)
+print('--init GO--')
+
 with gr.Blocks() as app:
-    gr.Markdown('# Guiding Instruction-based Image Editing via Multimodal Large Language Models')
+    gr.Markdown(
+        """
+        # [ICLR\'24] Guiding Instruction-based Image Editing via Multimodal Large Language Models<br>
+        🔔 this demo is hosted by [Tsu-Jui Fu](https://github.com/tsujuifu/pytorch_mgie)<br>
+        🔔 if the building process takes too long, please try refreshing the page<br>
+        🔔 a black image means that the output has not passed the [safety checker](https://huggingface.co/CompVis/stable-diffusion-safety-checker)
+        """
+    )
     with gr.Row(): inp, res = [gr.Image(height=384, width=384, label='Input Image', interactive=True), 
                                gr.Image(height=384, width=384, label='Goal Image', interactive=False)]
     with gr.Row(): txt, out = [gr.Textbox(label='Instruction', interactive=True), 
@@ -125,4 +139,4 @@ with gr.Blocks() as app:
     btn_sub.click(fn=go_mgie, inputs=[inp, txt, seed, cfg_txt, cfg_img], outputs=[res, out])
     btn_exp.click(fn=go_example, inputs=[seed, cfg_txt, cfg_img], outputs=[inp, txt, seed, cfg_txt, cfg_img])
     
-app.queue(concurrency_count=1), app.launch(server_port=7122)
+app.queue(concurrency_count=1), app.launch()
